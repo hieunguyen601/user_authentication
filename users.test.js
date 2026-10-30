@@ -1,4 +1,4 @@
-import { request } from "supertest";
+import request from "supertest";
 import { expect, test } from "vitest";
 import app from "./app.js";
 
@@ -24,7 +24,7 @@ test("PATCH /api/update/:id returning updated password", async () => {
   });
 
   const updatePassword = await request(app)
-    .patch(`/api/update/${createResponse.id}`)
+    .patch(`/api/update/${createResponse.body.id}`)
     .send({
       password: "654321",
     });
@@ -39,7 +39,7 @@ test("DELETE /api/deleteUser/:id returning deleted user", async () => {
   });
 
   const deleteUSer = await request(app).delete(
-    `/api/deleteUser/${createResponse.id}`,
+    `/api/deleteUser/${createResponse.body.id}`,
   );
   expect(deleteUSer.status).toBe(200);
 });

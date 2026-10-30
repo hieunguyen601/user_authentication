@@ -3,6 +3,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 
 const app = express();
+app.use(express.json());
 
 app.post("/api/signup", async (req, res) => {
   const { email, password } = req.body;
@@ -14,11 +15,11 @@ app.post("/api/signup", async (req, res) => {
   }
 
   try {
-    const hashed_password = bcrypt.hash(password, saltRounds);
+    const hashed_password = await bcrypt.hash(password, saltRounds);
     const result = await pool.query(
       `
         INSERT INTO users
-        email, password VALUES($1, $2) RETURNING *;
+        (email, password) VALUES($1, $2) RETURNING *;
         `,
       [email, hashed_password],
     );
@@ -42,9 +43,12 @@ app.post("/api/signin", async (req, res) => {
   }
 
   try {
-    const result = await pool.query(`
-        SELECT email, password FROM users
-        `);
+    const result = await pool.query(
+      `
+        SELECT email, password FROM users WHERE email = $1
+        `,
+      [email],
+    );
 
     const user = result.rows[0];
 
@@ -54,13 +58,15 @@ app.post("/api/signin", async (req, res) => {
       });
     }
 
-    const isMatch = bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
+
+    res.status(200).json({ message: "Signed in successfully" });
   } catch (error) {
     console.error("Couldn't process sign in", error);
     res.status(500).json({
@@ -72,8 +78,9 @@ app.post("/api/signin", async (req, res) => {
 app.patch("/api/update/:id", async (req, res) => {
   const { id } = req.params;
   const { password } = req.body;
-
+  const saltRounds = 12;
   try {
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
     const result = await pool.query(
       `
         UPDATE users
@@ -81,7 +88,7 @@ app.patch("/api/update/:id", async (req, res) => {
         WHERE id = $2
         RETURNING *;
         `,
-      [password, id],
+      [hashedPassword, id],
     );
 
     if (!password) {
